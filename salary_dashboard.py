@@ -17,7 +17,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("💼 Administrative Staff Salary Evaluation Dashboard v2")
+st.title("💼 Administrative Staff Salary Evaluation Dashboard")
 
 # --- SECTION 1: CANDIDATE INFO ---
 st.header("1. Candidate Information")
@@ -167,3 +167,4 @@ st.download_button(
     file_name=f"{candidate_name.replace(' ', '_')}_Salary_Evaluation.docx",
     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 )
+
