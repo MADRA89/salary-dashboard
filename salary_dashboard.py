@@ -71,7 +71,7 @@ if equity_file:
         fig, ax = plt.subplots()
         ax.bar(filtered_df['ID'].astype(str), filtered_df['Comp Rate'], color='skyblue', label='Peers')
         ax.axhline(y=final_salary, color='red', linestyle='--', label='Candidate Recommended Salary')
-        ax.set_xlabel("Employee ID", fontsize=8)
+        ax.set_xlabel("Employee ID", fontsize=2)
         ax.set_ylabel("Compensation (AED)")
         ax.set_title("Candidate Salary vs Internal Peers")
         ax.legend()
@@ -160,4 +160,5 @@ st.download_button(
     file_name=f"Salary_Evaluation_{candidate_name.replace(' ', '_')}.docx",
     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 )
+
 
