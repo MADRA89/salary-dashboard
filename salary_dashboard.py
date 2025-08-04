@@ -20,7 +20,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("💼 Administrative Staff Salary Evaluation Dashboard")
+st.title("💼 Administrative Staff Salary Evaluation Dashboard v2")
 st.markdown("### Evaluate candidates using AI and internal equity data")
 
 # --- FUNCTIONS ---
@@ -148,3 +148,4 @@ with tab5:
     """
     st.text_area("📋 Final Summary", final_summary, height=300)
     st.markdown("✅ *Copy this summary or save it as PDF using your browser print option.*")
+
