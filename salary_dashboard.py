@@ -21,7 +21,7 @@ jd_file = st.file_uploader("Upload Job Description (PDF or DOCX)", type=["pdf", 
 interview_file = st.file_uploader("Upload Interview Evaluation Sheet (PDF or DOCX)", type=["pdf", "docx"])
 equity_file = st.file_uploader("Upload Internal Equity Sheet (Excel)", type=["xlsx"])
 
-# --- STAGE 3: AI EVALUATION PLACEHOLDERS ---
+# --- STAGE 3: AI EVALUATION PLACEHOLDERS + MANUAL OVERRIDE ---
 st.header("3. AI Evaluation Results (Editable by HR)")
 education_score = st.slider("Education & Qualifications (Max 10)", 0, 10, 8)
 experience_score = st.slider("Experience (Max 10)", 0, 10, 7)
@@ -113,64 +113,49 @@ summary_text = f"""
 
 st.text_area("Editable Final Summary", value=summary_text, height=400)
 
-# --- STAGE 7: FINAL PDF DOWNLOAD ---
+# --- STAGE 7: FINAL REPORT DOWNLOAD ---
 st.header("7. Download Final Evaluation Report")
 
 class PDF(FPDF):
     def __init__(self):
         super().__init__()
-        self.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
-        self.set_font("DejaVu", "", 12)
+        self.add_page()
+        self.set_auto_page_break(auto=True, margin=15)
+        self.set_font("Arial", size=12)
 
-    def header(self):
-        self.set_font("DejaVu", "B", 14)
-        self.cell(0, 10, "HR Salary Evaluation Report", ln=True, align="C")
+    def add_title(self, title):
+        self.set_font("Arial", 'B', 16)
+        self.cell(0, 10, title, ln=True, align='C')
+        self.ln(10)
+
+    def add_section(self, header, content):
+        self.set_font("Arial", 'B', 14)
+        self.cell(0, 10, header, ln=True)
+        self.set_font("Arial", size=12)
+        self.multi_cell(0, 10, content)
         self.ln(5)
 
-    def section_title(self, title):
-        self.set_font("DejaVu", "B", 12)
-        self.set_text_color(30, 30, 30)
-        self.cell(0, 10, title, ln=True)
-        self.set_text_color(0, 0, 0)
-
-    def section_body(self, text):
-        self.set_font("DejaVu", "", 11)
-        self.multi_cell(0, 8, text)
-        self.ln()
-
 pdf = PDF()
-pdf.add_page()
-pdf.section_title("1. Candidate Information")
-pdf.section_body(f"""
-Candidate Name: {candidate_name}
-Position Title: {position_title}
-Position Grade: {position_grade}
+pdf.add_title("HR Salary Evaluation Report")
+pdf.add_section("1. Candidate Information", f"Candidate Name: {candidate_name}\nPosition Title: {position_title}\nPosition Grade: {position_grade}")
+
+pdf.add_section("2. Evaluation Scores", f"""
+Education & Qualifications: {education_score}/10
+Experience: {experience_score}/10
+Performance Potential: {performance_score}/10
+Total Score: {total_score}/30
+Suggested Step Interval: Steps {step_range[0]} to {step_range[-1]}
+Selected Final Step: Step {final_step}
+Recommended Salary: AED {final_salary:,.2f}
 """)
 
-pdf.section_title("2. Evaluation Scores")
-pdf.section_body(f"""
-- Education & Qualifications: {education_score}/10
-- Experience: {experience_score}/10
-- Performance Potential: {performance_score}/10
-- Total Score: {total_score}/30 → Suggested Step Interval: Steps {step_range[0]} to {step_range[-1]}
-- Selected Final Step: Step {final_step}
-- Recommended Salary: AED {final_salary:,.2f}
-""")
+pdf.add_section("3. Additional Adjustment Factors", f"Budget Flexibility: {budget_flex}\nCandidate Expectations: {candidate_expectations}")
 
-pdf.section_title("3. Adjustment Factors")
-pdf.section_body(f"""
-- Budget Flexibility: {budget_flex}
-- Candidate Expectations: {candidate_expectations}
-""")
+pdf.add_section("4. Final Summary", summary_text)
 
-pdf.section_title("4. Summary")
-pdf.section_body(summary_text)
+pdf.add_section("5. Report Generated On", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-pdf.section_title("5. Generated On")
-pdf.section_body(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-
-# Save PDF as bytes
-pdf_bytes = pdf.output(dest="S").encode("latin1")
+pdf_bytes = pdf.output(dest='S').encode('latin-1')
 
 st.download_button(
     label="📄 Download Final PDF Report",
@@ -178,6 +163,3 @@ st.download_button(
     file_name=f"Salary_Evaluation_{candidate_name.replace(' ', '_')}.pdf",
     mime='application/pdf'
 )
-
-st.markdown("---")
-st.markdown("💡 Download the PDF for official record or sharing.")
