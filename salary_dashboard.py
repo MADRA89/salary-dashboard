@@ -1,4 +1,4 @@
-# salary_dashboard_ai.py
+# salary_dashboard.py
 import streamlit as st
 import pandas as pd
 import fitz  # PyMuPDF for extracting text from PDF
@@ -148,4 +148,3 @@ with tab5:
     """
     st.text_area("📋 Final Summary", final_summary, height=300)
     st.markdown("✅ *Copy this summary or save it as PDF using your browser print option.*")
-
