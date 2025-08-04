@@ -1,7 +1,9 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from fpdf import FPDF
+from io import BytesIO
+from docx import Document
+from docx.shared import Pt
 import datetime
 
 # --- PAGE CONFIG ---
@@ -94,17 +96,17 @@ candidate_expectations = st.selectbox("Candidate Salary Expectations", [
 st.header("6. Final Summary & Justification")
 
 summary_text = f"""
-**Candidate:** {candidate_name}  
-**Position Title:** {position_title}  
-**Position Grade:** {position_grade}  
+Candidate: {candidate_name}
+Position Title: {position_title}
+Position Grade: {position_grade}
 
-### Evaluation Scores:
+Evaluation Scores:
 - Education & Qualifications: {education_score}/10
 - Experience: {experience_score}/10
 - Performance Potential: {performance_score}/10
-- **Total Score:** {total_score}/30 → Step Interval: Steps {step_range[0]} to {step_range[-1]}
+- Total Score: {total_score}/30 → Step Interval: Steps {step_range[0]} to {step_range[-1]}
 
-### Final Decision:
+Final Decision:
 - Selected Step: Step {final_step}
 - Recommended Salary: AED {final_salary:,.2f}
 - Budget Flexibility: {budget_flex}
@@ -113,53 +115,48 @@ summary_text = f"""
 
 st.text_area("Editable Final Summary", value=summary_text, height=400)
 
-# --- STAGE 7: FINAL REPORT DOWNLOAD ---
-st.header("7. Download Final Evaluation Report")
+# --- STAGE 7: FINAL REPORT DOWNLOAD AS WORD ---
+st.header("7. Download Final Evaluation Report (Word DOCX)")
 
-class PDF(FPDF):
-    def __init__(self):
-        super().__init__()
-        self.add_page()
-        self.set_auto_page_break(auto=True, margin=15)
-        self.set_font("Arial", size=12)
+def create_word_report():
+    doc = Document()
+    doc.add_heading('HR Salary Evaluation Report', level=0)
 
-    def add_title(self, title):
-        self.set_font("Arial", 'B', 16)
-        self.cell(0, 10, title, ln=True, align='C')
-        self.ln(10)
+    doc.add_heading('1. Candidate Information', level=1)
+    doc.add_paragraph(f"Candidate Name: {candidate_name}")
+    doc.add_paragraph(f"Position Title: {position_title}")
+    doc.add_paragraph(f"Position Grade: {position_grade}")
 
-    def add_section(self, header, content):
-        self.set_font("Arial", 'B', 14)
-        self.cell(0, 10, header, ln=True)
-        self.set_font("Arial", size=12)
-        self.multi_cell(0, 10, content)
-        self.ln(5)
+    doc.add_heading('2. Evaluation Scores', level=1)
+    doc.add_paragraph(f"Education & Qualifications: {education_score}/10")
+    doc.add_paragraph(f"Experience: {experience_score}/10")
+    doc.add_paragraph(f"Performance Potential: {performance_score}/10")
+    doc.add_paragraph(f"Total Score: {total_score}/30")
+    doc.add_paragraph(f"Suggested Step Interval: Steps {step_range[0]} to {step_range[-1]}")
+    doc.add_paragraph(f"Selected Final Step: Step {final_step}")
+    doc.add_paragraph(f"Recommended Salary: AED {final_salary:,.2f}")
 
-pdf = PDF()
-pdf.add_title("HR Salary Evaluation Report")
-pdf.add_section("1. Candidate Information", f"Candidate Name: {candidate_name}\nPosition Title: {position_title}\nPosition Grade: {position_grade}")
+    doc.add_heading('3. Additional Adjustment Factors', level=1)
+    doc.add_paragraph(f"Budget Flexibility: {budget_flex}")
+    doc.add_paragraph(f"Candidate Expectations: {candidate_expectations}")
 
-pdf.add_section("2. Evaluation Scores", f"""
-Education & Qualifications: {education_score}/10
-Experience: {experience_score}/10
-Performance Potential: {performance_score}/10
-Total Score: {total_score}/30
-Suggested Step Interval: Steps {step_range[0]} to {step_range[-1]}
-Selected Final Step: Step {final_step}
-Recommended Salary: AED {final_salary:,.2f}
-""")
+    doc.add_heading('4. Final Summary & Justification', level=1)
+    doc.add_paragraph(summary_text)
 
-pdf.add_section("3. Additional Adjustment Factors", f"Budget Flexibility: {budget_flex}\nCandidate Expectations: {candidate_expectations}")
+    doc.add_heading('5. Report Generated On', level=1)
+    doc.add_paragraph(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-pdf.add_section("4. Final Summary", summary_text)
+    # حفظ الملف في ذاكرة مؤقتة
+    file_stream = BytesIO()
+    doc.save(file_stream)
+    file_stream.seek(0)
+    return file_stream
 
-pdf.add_section("5. Report Generated On", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-
-pdf_bytes = pdf.output(dest='S').encode('latin-1')
+word_report = create_word_report()
 
 st.download_button(
-    label="📄 Download Final PDF Report",
-    data=pdf_bytes,
-    file_name=f"Salary_Evaluation_{candidate_name.replace(' ', '_')}.pdf",
-    mime='application/pdf'
+    label="📄 Download Final Evaluation Report (Word DOCX)",
+    data=word_report,
+    file_name=f"Salary_Evaluation_{candidate_name.replace(' ', '_')}.docx",
+    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 )
