@@ -8,7 +8,7 @@ import datetime
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="HR Salary Evaluation", layout="wide")
-st.title("Administrative Staff Salary Evaluation Dashboard")
+st.title("Administrative Staff Salary Evaluation Dashboard v2")
 
 # --- STAGE 1: CANDIDATE INFO ---
 st.header("1. Candidate Information")
@@ -160,6 +160,7 @@ st.download_button(
     file_name=f"Salary_Evaluation_{candidate_name.replace(' ', '_')}.docx",
     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 )
+
 
 
 
