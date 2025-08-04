@@ -6,10 +6,9 @@ import datetime
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="HR Salary Evaluation", layout="wide")
-
-# --- STAGE 1: CANDIDATE INFO ---
 st.title("Administrative Staff Salary Evaluation Dashboard")
 
+# --- STAGE 1: CANDIDATE INFO ---
 st.header("1. Candidate Information")
 candidate_name = st.text_input("Candidate Name")
 position_title = st.text_input("Position Title")
@@ -22,10 +21,8 @@ jd_file = st.file_uploader("Upload Job Description (PDF or DOCX)", type=["pdf", 
 interview_file = st.file_uploader("Upload Interview Evaluation Sheet (PDF or DOCX)", type=["pdf", "docx"])
 equity_file = st.file_uploader("Upload Internal Equity Sheet (Excel)", type=["xlsx"])
 
-# --- STAGE 3: AI EVALUATION PLACEHOLDERS + MANUAL OVERRIDE ---
+# --- STAGE 3: AI EVALUATION PLACEHOLDERS ---
 st.header("3. AI Evaluation Results (Editable by HR)")
-
-st.markdown("**Note:** AI would normally parse documents. These are placeholder scores, manually adjustable.")
 education_score = st.slider("Education & Qualifications (Max 10)", 0, 10, 8)
 experience_score = st.slider("Experience (Max 10)", 0, 10, 7)
 performance_score = st.slider("Performance Potential (Max 10)", 0, 10, 7)
@@ -69,7 +66,6 @@ if equity_file:
         - **Number of Peers:** {len(filtered_df)}
         """)
 
-        # Bar Chart
         fig, ax = plt.subplots()
         ax.bar(filtered_df['ID'].astype(str), filtered_df['Comp Rate'], color='skyblue', label='Peers')
         ax.axhline(y=final_salary, color='red', linestyle='--', label='Candidate Recommended Salary')
@@ -78,14 +74,6 @@ if equity_file:
         ax.set_title("Candidate Salary vs Internal Peers")
         ax.legend()
         st.pyplot(fig)
-
-        st.selectbox("Equity Placement Suggestion", [
-            "Above Peers (Higher Step)",
-            "Aligned with Peers (Mid Step)",
-            "Below Peers (Lower Step)"
-        ])
-    else:
-        st.warning("No matching peers found in the uploaded sheet.")
 else:
     st.info("Upload an Internal Equity Excel file to view comparison chart.")
 
@@ -111,44 +99,47 @@ summary_text = f"""
 **Position Grade:** {position_grade}  
 
 ### Evaluation Scores:
-- Education & Qualifications: {education_score}/10  
-- Experience: {experience_score}/10  
-- Performance Potential: {performance_score}/10  
+- Education & Qualifications: {education_score}/10
+- Experience: {experience_score}/10
+- Performance Potential: {performance_score}/10
 - **Total Score:** {total_score}/30 → Step Interval: Steps {step_range[0]} to {step_range[-1]}
 
 ### Final Decision:
-- Selected Step: Step {final_step}  
-- Recommended Salary: AED {final_salary:,.2f}  
-- Budget Flexibility: {budget_flex}  
+- Selected Step: Step {final_step}
+- Recommended Salary: AED {final_salary:,.2f}
+- Budget Flexibility: {budget_flex}
 - Candidate Expectations: {candidate_expectations}
 """
 
 st.text_area("Editable Final Summary", value=summary_text, height=400)
 
-# --- STAGE 7: DOWNLOAD FINAL REPORT ---
-st.header("7. Download Final PDF Report")
+# --- STAGE 7: FINAL PDF DOWNLOAD ---
+st.header("7. Download Final Evaluation Report")
 
 class PDF(FPDF):
+    def __init__(self):
+        super().__init__()
+        self.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
+        self.set_font("DejaVu", "", 12)
+
     def header(self):
-        self.set_font("Arial", "B", 14)
+        self.set_font("DejaVu", "B", 14)
         self.cell(0, 10, "HR Salary Evaluation Report", ln=True, align="C")
         self.ln(5)
 
     def section_title(self, title):
-        self.set_font("Arial", "B", 12)
+        self.set_font("DejaVu", "B", 12)
         self.set_text_color(30, 30, 30)
         self.cell(0, 10, title, ln=True)
         self.set_text_color(0, 0, 0)
 
     def section_body(self, text):
-        self.set_font("Arial", "", 11)
+        self.set_font("DejaVu", "", 11)
         self.multi_cell(0, 8, text)
         self.ln()
 
 pdf = PDF()
 pdf.add_page()
-
-# Section 1
 pdf.section_title("1. Candidate Information")
 pdf.section_body(f"""
 Candidate Name: {candidate_name}
@@ -156,7 +147,6 @@ Position Title: {position_title}
 Position Grade: {position_grade}
 """)
 
-# Section 2
 pdf.section_title("2. Evaluation Scores")
 pdf.section_body(f"""
 - Education & Qualifications: {education_score}/10
@@ -167,19 +157,21 @@ pdf.section_body(f"""
 - Recommended Salary: AED {final_salary:,.2f}
 """)
 
-# Section 3
-pdf.section_title("3. Additional Adjustment Factors")
+pdf.section_title("3. Adjustment Factors")
 pdf.section_body(f"""
 - Budget Flexibility: {budget_flex}
 - Candidate Expectations: {candidate_expectations}
 """)
 
-# Section 4
-pdf.section_title("4. Generated On")
+pdf.section_title("4. Summary")
+pdf.section_body(summary_text)
+
+pdf.section_title("5. Generated On")
 pdf.section_body(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-# Export PDF
-pdf_bytes = pdf.output(dest='S').encode('latin-1')
+# Save PDF as bytes
+pdf_bytes = pdf.output(dest="S").encode("latin1")
+
 st.download_button(
     label="📄 Download Final PDF Report",
     data=pdf_bytes,
@@ -188,4 +180,4 @@ st.download_button(
 )
 
 st.markdown("---")
-st.markdown("💡 You can now download the final report as a PDF for your records.")
+st.markdown("💡 Download the PDF for official record or sharing.")
