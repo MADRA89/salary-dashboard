@@ -176,11 +176,11 @@ with tab2:
 
     st.markdown(f"""
     ### 🎯 Candidate Scoring Summary
-    - **Education:** {education_score}/10
-    - **Experience:** {experience_score}/10
-    - **Performance:** {performance_score}/10
-    - **Total Score:** {total_score}/30
-    - **Suggested Step Interval:** {interval_options} → **{placement}**
+- **Education:** {education_score}/10 — Based on the candidate's highest qualification.
+- **Experience:** {experience_score}/10 — Reflects total relevant years of work experience.
+- **Performance:** {performance_score}/10 — Inferred from interview evaluation or performance record.
+- **Total Score:** {total_score}/30 — Combined score determining placement tier.
+- **Suggested Step Interval:** {interval_options} → **{placement}** — Indicates the appropriate compensation band.
     """)
     selected_step = st.selectbox("✅ Select Final Step", interval_options)
 
