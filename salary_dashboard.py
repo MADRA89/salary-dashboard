@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import altair as alt
 import random
 import time
@@ -8,17 +7,14 @@ from io import BytesIO
 
 # --- Helper Functions ---
 def mock_parse_cv_and_jd():
-    education_scores = [10, 7, 4, 2]
-    experience_scores = [10, 7, 5, 3]
     return {
-        "educationScore": random.choice(education_scores),
-        "experienceScore": random.choice(experience_scores)
+        "educationScore": random.choice([10, 7, 4, 2]),
+        "experienceScore": random.choice([10, 7, 5, 3])
     }
 
 def mock_parse_interview_sheet():
-    performance_scores = [10, 7, 5, 2]
     return {
-        "performanceScore": random.choice(performance_scores)
+        "performanceScore": random.choice([10, 7, 5, 2])
     }
 
 def get_step_interval(score):
@@ -37,22 +33,35 @@ def convert_df_to_excel(df):
     output = BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         df.to_excel(writer, sheet_name="EquityAnalysis", index=False)
-    processed_data = output.getvalue()
-    return processed_data
+    return output.getvalue()
+
+def load_filtered_equity_data(uploaded_file, position_title_input):
+    df = pd.read_excel(uploaded_file)
+    df.columns = [col.strip().lower() for col in df.columns]
+    required_cols = {'id', 'position title', 'hire date', 'comp rate'}
+    if not required_cols.issubset(set(df.columns)):
+        return None, "❌ Excel must include columns: ID, Position Title, Hire Date, Comp Rate."
+    df_filtered = df[[c for c in df.columns if c in required_cols]]
+    df_filtered.columns = ['id', 'positionTitle', 'hireDate', 'compRate']
+    df_filtered = df_filtered[df_filtered['positionTitle'].str.lower() == position_title_input.lower()]
+    return df_filtered, None
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="Salary Evaluation Dashboard", layout="wide")
-st.title("📊 Salary Evaluation Dashboard")
+st.markdown("<h1 style='color:#003366;'>📊 Salary Evaluation Dashboard</h1>", unsafe_allow_html=True)
 
-tab1, tab2 = st.tabs(["Evaluation & Scoring Matrices", "Candidate Analysis"])
+tab1, tab2 = st.tabs([
+    "📘 Evaluation & Scoring Matrices",
+    "📋 Candidate Analysis"
+])
 
 # --- Tab 1: Matrices ---
 with tab1:
     col1, col2 = st.columns(2)
-
     with col1:
         st.subheader("🎓 Candidate Evaluation Matrix")
         st.markdown("""
+        <style>table {background-color: #f9f9f9;}</style>
         | Criteria | Points |
         |----------|--------|
         | Master’s degree or higher | 10 |
@@ -67,7 +76,7 @@ with tab1:
         | Above average performance | 7 |
         | Average performance | 5 |
         | Limited performance | 2 |
-        """)
+        """, unsafe_allow_html=True)
 
     with col2:
         st.subheader("📈 Score-to-Step Matrix")
@@ -81,114 +90,137 @@ with tab1:
         | <10   | Steps 1–2 | Bottom Range |
         """)
 
-# --- Tab 2: Main Dashboard ---
+# --- Tab 2: Analysis ---
 with tab2:
-    st.subheader("Step 1: Candidate Profile")
-    name = st.text_input("Candidate Name")
-    title = st.text_input("Position Title (used for equity comparison)")
-    grade = st.text_input("Position Grade")
+    st.subheader("Step 1: Candidate & Position Details")
+    colA, colB = st.columns([1, 2])
 
-    st.subheader("Step 2: Upload Documents")
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        uploaded_cv = st.file_uploader("📄 CV", type=["pdf", "docx"])
-    with col2:
-        uploaded_jd = st.file_uploader("📝 Job Description", type=["pdf", "docx"])
-    with col3:
-        uploaded_interview = st.file_uploader("🗒️ Interview Sheet", type=["pdf", "docx"])
-    with col4:
-        uploaded_equity = st.file_uploader("📊 Internal Equity Excel", type=["xlsx"])
+    with colA:
+        name = st.text_input("👤 Candidate Name")
+        title = st.text_input("🏷️ Position Title (for equity comparison)")
+        grade = st.text_input("🎖️ Position Grade")
 
-    st.subheader("Step 3: Evaluation Scoring")
-    if uploaded_cv and uploaded_jd:
-        with st.spinner("Evaluating CV & JD..."):
-            time.sleep(1)
-            scores = mock_parse_cv_and_jd()
-            education_score = scores["educationScore"]
-            experience_score = scores["experienceScore"]
-    else:
-        education_score = st.slider("Education Score", 0, 10, 0)
-        experience_score = st.slider("Experience Score", 0, 10, 0)
+    with colB:
+        st.markdown("### Step 2: Upload Documents")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            uploaded_cv = st.file_uploader("📄 CV", type=["pdf", "docx"])
+        with col2:
+            uploaded_jd = st.file_uploader("📝 Job Description", type=["pdf", "docx"])
+        with col3:
+            uploaded_interview = st.file_uploader("🗒️ Interview Sheet", type=["pdf", "docx"])
+        with col4:
+            uploaded_equity = st.file_uploader("📊 Internal Equity Excel", type=["xlsx"])
 
-    if uploaded_interview:
-        with st.spinner("Evaluating Interview..."):
-            time.sleep(1)
-            interview_result = mock_parse_interview_sheet()
-            performance_score = interview_result["performanceScore"]
-    else:
-        performance_score = st.slider("Performance Score", 0, 10, 0)
+        st.markdown("### Step 3: Evaluation Scoring")
 
-    total_score = education_score + experience_score + performance_score
-    interval_options, placement = get_step_interval(total_score)
+        if uploaded_cv and uploaded_jd:
+            with st.spinner("🔍 Evaluating CV & JD..."):
+                time.sleep(1)
+                scores = mock_parse_cv_and_jd()
+                education_score = scores["educationScore"]
+                experience_score = scores["experienceScore"]
+        else:
+            education_score = st.slider("🎓 Education Score", 0, 10, 0)
+            experience_score = st.slider("💼 Experience Score", 0, 10, 0)
 
-    st.markdown(f"**Total Score:** {total_score}/30 → Step Interval: {interval_options} → Placement: **{placement}**")
-    selected_step = st.selectbox("Select Step from Suggested Interval", interval_options)
+        if uploaded_interview:
+            with st.spinner("🧠 Evaluating Interview..."):
+                time.sleep(1)
+                interview_result = mock_parse_interview_sheet()
+                performance_score = interview_result["performanceScore"]
+        else:
+            performance_score = st.slider("🚀 Performance Score", 0, 10, 0)
 
-    st.subheader("Step 4: Salary Recommendation")
+        total_score = education_score + experience_score + performance_score
+        interval_options, placement = get_step_interval(total_score)
+
+        st.markdown(f"""
+        ### 🎯 Candidate Scoring Summary
+        - **Education:** {education_score}/10
+        - **Experience:** {experience_score}/10
+        - **Performance:** {performance_score}/10
+        - **Total Score:** {total_score}/30
+        - **Suggested Step Interval:** {interval_options} → **{placement}**
+        """)
+        selected_step = st.selectbox("✅ Select Final Step", interval_options)
+
+    st.markdown("### Step 4: Salary Recommendation")
     budget_threshold = st.number_input("💰 Budget Threshold (AED)", step=500)
     recommended_salary = st.number_input("🤖 AI-Recommended Salary (AED)", step=500)
     final_salary = st.number_input("✅ Final Recommended Salary (AED)", step=500)
 
-    st.subheader("Step 5: Internal Equity Analysis")
-    if uploaded_equity:
-        df_peers = pd.read_excel(uploaded_equity)
-        if "compRate" in df_peers.columns and "id" in df_peers.columns:
-            df_peers = df_peers.append({
-                "id": "Candidate",
-                "positionTitle": title,
-                "compRate": final_salary
-            }, ignore_index=True)
+    st.markdown("### Step 5: Internal Equity Analysis")
+    if uploaded_equity and title:
+        df_peers, error = load_filtered_equity_data(uploaded_equity, title)
 
-            st.dataframe(df_peers)
+        if error:
+            st.error(error)
+        elif df_peers.empty:
+            st.warning(f"No matching peers found for position title: '{title}'")
+        else:
+            df_peers = pd.concat([
+                df_peers,
+                pd.DataFrame([{
+                    "id": "Candidate",
+                    "positionTitle": title,
+                    "hireDate": "N/A",
+                    "compRate": final_salary
+                }])
+            ], ignore_index=True)
+
+            st.dataframe(df_peers.style.set_properties(**{'background-color': '#f0f0f5'}))
 
             avg = df_peers["compRate"].mean()
             min_val = df_peers["compRate"].min()
             max_val = df_peers["compRate"].max()
 
-            st.markdown(f"**Equity Range:** Min AED {min_val:,} | Avg AED {avg:,.0f} | Max AED {max_val:,}")
+            st.markdown(f"**Equity Range for '{title}':** Min AED {min_val:,} | Avg AED {avg:,.0f} | Max AED {max_val:,}")
 
             chart = alt.Chart(df_peers).mark_bar().encode(
                 x=alt.X("id:N", title="Employee ID"),
                 y=alt.Y("compRate:Q", title="Compensation (AED)"),
-                color=alt.condition(alt.datum.id == "Candidate", alt.value("orange"), alt.value("steelblue")),
+                color=alt.condition(alt.datum.id == "Candidate", alt.value("#FF8C00"), alt.value("#2a5c88")),
                 tooltip=["id", "compRate"]
-            ).properties(title="Compensation Comparison", width=700, height=350)
+            ).properties(title="💼 Compensation Comparison", width=700, height=350)
 
             st.altair_chart(chart, use_container_width=True)
 
             excel_data = convert_df_to_excel(df_peers)
             st.download_button(
-                label="📥 Download Equity Data (Excel)",
+                label="📥 Download Equity Data (.xlsx)",
                 data=excel_data,
-                file_name="equity_analysis.xlsx",
+                file_name="equity_analysis_filtered.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-        else:
-            st.error("⚠️ Excel file must contain 'id' and 'compRate' columns.")
 
-    st.subheader("Step 6: Budget Status Check")
+    st.markdown("### Step 6: Budget Status")
     if final_salary and budget_threshold:
         if final_salary <= budget_threshold:
-            st.success(f"✅ Within Budget (AED {final_salary:,.0f} ≤ AED {budget_threshold:,.0f})")
+            st.success(f"✅ Within Budget (AED {final_salary:,.0f})")
         else:
-            st.error(f"❌ Out of Budget (AED {final_salary:,.0f} > AED {budget_threshold:,.0f})")
+            st.error(f"❌ Out of Budget (AED {final_salary:,.0f})")
 
-    st.subheader("Step 7: Final Summary & HR Comments")
-    hr_comments = st.text_area("📝 HR Final Comments or Notes")
+    st.markdown("### Step 7: Final HR Comments & Export")
+    hr_comments = st.text_area("📝 HR Final Comments")
 
-    if st.button("Generate Final Summary"):
+    if st.button("📤 Generate Final Summary"):
         summary = f"""
-        ### Final Recommendation Summary
+        📌 Final Recommendation Summary
 
-        - Candidate Name: {name}
-        - Position Title: {title}
-        - Total Score: {total_score}/30 → Step Interval: {interval_options} → Placement: {placement}
-        - Selected Step: {selected_step}
-        - Recommended Salary (AI): AED {recommended_salary:,.0f}
-        - Final Recommended Salary: AED {final_salary:,.0f}
-        - Budget Threshold: AED {budget_threshold:,.0f}
-        - Budget Status: {"Within" if final_salary <= budget_threshold else "Out of"} Budget
-        - HR Final Comments: {hr_comments}
+        Candidate Name: {name}
+        Position Title: {title}
+        Grade: {grade}
+
+        Total Score: {total_score}/30 → Step Interval: {interval_options} → Placement: {placement}
+        Selected Step: {selected_step}
+        AI-Recommended Salary: AED {recommended_salary:,.0f}
+        Final Recommended Salary: AED {final_salary:,.0f}
+        Budget Threshold: AED {budget_threshold:,.0f}
+        Budget Status: {"Within" if final_salary <= budget_threshold else "Out of"} Budget
+
+        HR Final Comments:
+        {hr_comments}
         """
         st.text_area("📋 Final Summary", summary, height=250)
-        st.download_button("📤 Download Final Summary (Text)", data=summary, file_name="salary_summary.txt")
+        st.download_button("📤 Download Final Summary (.txt)", data=summary, file_name="salary_summary.txt")
