@@ -4,6 +4,7 @@ import altair as alt
 import random
 import time
 from io import BytesIO
+from pandas import ExcelWriter
 
 # --- Helper Functions ---
 def mock_parse_cv_and_jd():
@@ -31,7 +32,7 @@ def get_step_interval(score):
 
 def convert_df_to_excel(df):
     output = BytesIO()
-    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+    with ExcelWriter(output, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name="EquityAnalysis", index=False)
     return output.getvalue()
 
@@ -61,7 +62,6 @@ with tab1:
     with col1:
         st.subheader("🎓 Candidate Evaluation Matrix")
         st.markdown("""
-        <style>table {background-color: #f9f9f9;}</style>
         | Criteria | Points |
         |----------|--------|
         | Master’s degree or higher | 10 |
@@ -76,7 +76,7 @@ with tab1:
         | Above average performance | 7 |
         | Average performance | 5 |
         | Limited performance | 2 |
-        """, unsafe_allow_html=True)
+        """)
 
     with col2:
         st.subheader("📈 Score-to-Step Matrix")
@@ -90,7 +90,7 @@ with tab1:
         | <10   | Steps 1–2 | Bottom Range |
         """)
 
-# --- Tab 2: Analysis ---
+# --- Tab 2: Candidate Analysis ---
 with tab2:
     st.subheader("Step 1: Candidate & Position Details")
     colA, colB = st.columns([1, 2])
@@ -112,25 +112,27 @@ with tab2:
         with col4:
             uploaded_equity = st.file_uploader("📊 Internal Equity Excel", type=["xlsx"])
 
-        st.markdown("### Step 3: Evaluation Scoring")
+        st.markdown("### Step 3: AI Evaluation + Manual Adjustment")
 
+        # Default AI scoring
         if uploaded_cv and uploaded_jd:
             with st.spinner("🔍 Evaluating CV & JD..."):
                 time.sleep(1)
-                scores = mock_parse_cv_and_jd()
-                education_score = scores["educationScore"]
-                experience_score = scores["experienceScore"]
+                ai_scores = mock_parse_cv_and_jd()
         else:
-            education_score = st.slider("🎓 Education Score", 0, 10, 0)
-            experience_score = st.slider("💼 Experience Score", 0, 10, 0)
+            ai_scores = {"educationScore": 0, "experienceScore": 0}
 
         if uploaded_interview:
             with st.spinner("🧠 Evaluating Interview..."):
                 time.sleep(1)
-                interview_result = mock_parse_interview_sheet()
-                performance_score = interview_result["performanceScore"]
+                ai_scores.update(mock_parse_interview_sheet())
         else:
-            performance_score = st.slider("🚀 Performance Score", 0, 10, 0)
+            ai_scores["performanceScore"] = 0
+
+        # Editable scoring fields (user override)
+        education_score = st.slider("🎓 Education Score (Editable)", 0, 10, ai_scores["educationScore"])
+        experience_score = st.slider("💼 Experience Score (Editable)", 0, 10, ai_scores["experienceScore"])
+        performance_score = st.slider("🚀 Performance Score (Editable)", 0, 10, ai_scores["performanceScore"])
 
         total_score = education_score + experience_score + performance_score
         interval_options, placement = get_step_interval(total_score)
@@ -153,7 +155,6 @@ with tab2:
     st.markdown("### Step 5: Internal Equity Analysis")
     if uploaded_equity and title:
         df_peers, error = load_filtered_equity_data(uploaded_equity, title)
-
         if error:
             st.error(error)
         elif df_peers.empty:
