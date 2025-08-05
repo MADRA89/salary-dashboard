@@ -141,56 +141,55 @@ with tab2:
         title = st.text_input("🏷️ Position Title (for equity comparison)")
         grade = st.text_input("🎖️ Position Grade")
 
-    with colB:
-        st.markdown("### Step 2: Upload Documents")
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            uploaded_cv = st.file_uploader("📄 CV", type=["pdf", "docx"])
-        with col2:
-            uploaded_jd = st.file_uploader("📝 Job Description", type=["pdf", "docx"])
-        with col3:
-            uploaded_interview = st.file_uploader("🗒️ Interview Sheet", type=["pdf", "docx"])
-        with col4:
-            uploaded_equity = st.file_uploader("📊 Internal Equity Excel", type=["xlsx"])
+    st.subheader("Step 2: Upload Documents")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        uploaded_cv = st.file_uploader("📄 CV", type=["pdf", "docx"])
+    with col2:
+        uploaded_jd = st.file_uploader("📝 Job Description", type=["pdf", "docx"])
+    with col3:
+        uploaded_interview = st.file_uploader("🗒️ Interview Sheet", type=["pdf", "docx"])
+    with col4:
+        uploaded_equity = st.file_uploader("📊 Internal Equity Excel", type=["xlsx"])
 
-        st.markdown("### Step 3: AI Evaluation + Manual Adjustment")
-        if uploaded_cv and uploaded_jd:
-            with st.spinner("🔍 Evaluating CV & JD..."):
-                time.sleep(1)
-                ai_scores = mock_parse_cv_and_jd()
-        else:
-            ai_scores = {"educationScore": 0, "experienceScore": 0}
+    st.subheader("Step 3: AI Evaluation + Manual Adjustment")
+    if uploaded_cv and uploaded_jd:
+        with st.spinner("🔍 Evaluating CV & JD..."):
+            time.sleep(1)
+            ai_scores = mock_parse_cv_and_jd()
+    else:
+        ai_scores = {"educationScore": 0, "experienceScore": 0}
 
-        if uploaded_interview:
-            with st.spinner("🧠 Evaluating Interview..."):
-                time.sleep(1)
-                ai_scores.update(mock_parse_interview_sheet())
-        else:
-            ai_scores["performanceScore"] = 0
+    if uploaded_interview:
+        with st.spinner("🧠 Evaluating Interview..."):
+            time.sleep(1)
+            ai_scores.update(mock_parse_interview_sheet())
+    else:
+        ai_scores["performanceScore"] = 0
 
-        education_score = st.slider("🎓 Education Score (Editable)", 0, 10, ai_scores["educationScore"])
-        experience_score = st.slider("💼 Experience Score (Editable)", 0, 10, ai_scores["experienceScore"])
-        performance_score = st.slider("🚀 Performance Score (Editable)", 0, 10, ai_scores["performanceScore"])
+    education_score = st.slider("🎓 Education Score (Editable)", 0, 10, ai_scores["educationScore"])
+    experience_score = st.slider("💼 Experience Score (Editable)", 0, 10, ai_scores["experienceScore"])
+    performance_score = st.slider("🚀 Performance Score (Editable)", 0, 10, ai_scores["performanceScore"])
 
-        total_score = education_score + experience_score + performance_score
-        interval_options, placement = get_step_interval(total_score)
+    total_score = education_score + experience_score + performance_score
+    interval_options, placement = get_step_interval(total_score)
 
-        st.markdown(f"""
-        ### 🎯 Candidate Scoring Summary
-        - **Education:** {education_score}/10
-        - **Experience:** {experience_score}/10
-        - **Performance:** {performance_score}/10
-        - **Total Score:** {total_score}/30
-        - **Suggested Step Interval:** {interval_options} → **{placement}**
-        """)
-        selected_step = st.selectbox("✅ Select Final Step", interval_options)
+    st.markdown(f"""
+    ### 🎯 Candidate Scoring Summary
+    - **Education:** {education_score}/10
+    - **Experience:** {experience_score}/10
+    - **Performance:** {performance_score}/10
+    - **Total Score:** {total_score}/30
+    - **Suggested Step Interval:** {interval_options} → **{placement}**
+    """)
+    selected_step = st.selectbox("✅ Select Final Step", interval_options)
 
-    st.markdown("### Step 4: Salary Recommendation")
+    st.subheader("Step 4: Salary Recommendation")
     budget_threshold = st.number_input("💰 Budget Threshold (AED)", step=500)
     recommended_salary = st.number_input("🤖 AI-Recommended Salary (AED)", step=500)
     final_salary = st.number_input("✅ Final Recommended Salary (AED)", step=500)
 
-    st.markdown("### Step 5: Internal Equity Analysis")
+    st.subheader("Step 5: Internal Equity Analysis")
     if uploaded_equity and title:
         df_peers, error = load_filtered_equity_data(uploaded_equity, title)
         if error:
@@ -233,14 +232,14 @@ with tab2:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-    st.markdown("### Step 6: Budget Status")
+    st.subheader("Step 6: Budget Status")
     if final_salary and budget_threshold:
         if final_salary <= budget_threshold:
             st.success(f"✅ Within Budget (AED {final_salary:,.0f})")
         else:
             st.error(f"❌ Out of Budget (AED {final_salary:,.0f})")
 
-    st.markdown("### Step 7: Final HR Comments & Export")
+    st.subheader("Step 7: Final HR Comments & Export")
     hr_comments = st.text_area("📝 HR Final Comments")
 
     if st.button("📤 Generate Final Summary"):
