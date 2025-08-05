@@ -1,170 +1,119 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-from io import BytesIO
-from docx import Document
-import datetime
+import random
 
-# --- PAGE CONFIG & STYLE ---
-st.set_page_config(page_title="HR Salary Evaluation", layout="wide", page_icon="📊")
+# ---------- Mock AI Scoring Functions ----------
+def mock_parse_cv_and_jd():
+    return {
+        "educationScore": random.choice([10, 7, 4, 2]),
+        "experienceScore": random.choice([10, 7, 5, 3]),
+    }
 
-st.markdown("""
-    <style>
-    .main { background-color: #f9fbfd; }
-    h1, h2, h3, .stTextInput>label, .stSlider>label, .stSelectbox>label { color: #003566; }
-    .stButton>button { background-color: #0077b6; color: white; border-radius: 8px; }
-    .stDownloadButton>button { background-color: #00b4d8; color: white; border-radius: 8px; }
-    </style>
-""", unsafe_allow_html=True)
+def mock_parse_interview():
+    return {
+        "performanceScore": random.choice([10, 7, 5, 2])
+    }
 
-st.title("💼 Administrative Staff Salary Evaluation Dashboard")
+def mock_parse_equity(position_title):
+    count = random.randint(3, 8)
+    peers = []
+    for _ in range(count):
+        peers.append({
+            "id": f"EMP-00{random.randint(1,99)}",
+            "positionTitle": position_title,
+            "hireDate": f"202{random.randint(0,3)}-{random.randint(1,12):02}-01",
+            "compRate": random.randint(7000, 17000)
+        })
+    return peers
 
-# --- SECTION 1: CANDIDATE INFO ---
-st.header("1. Candidate Information")
-candidate_name = st.text_input("Candidate Name")
-position_title = st.text_input("Position Title")
-position_grade = st.text_input("Position Grade")
+def get_step_interval(score):
+    if score >= 25: return { "range": "12–15", "label": "Top Range", "min": 12, "max": 15 }
+    if score >= 20: return { "range": "9–11", "label": "Mid-Upper Range", "min": 9, "max": 11 }
+    if score >= 15: return { "range": "6–8", "label": "Mid Range", "min": 6, "max": 8 }
+    if score >= 10: return { "range": "3–5", "label": "Lower-Mid Range", "min": 3, "max": 5 }
+    return { "range": "1–2", "label": "Bottom Range", "min": 1, "max": 2 }
 
-# --- SECTION 2: DOCUMENT UPLOADS ---
-st.header("2. Upload Required Documents")
-cv_file = st.file_uploader("Upload CV (PDF or DOCX)", type=["pdf", "docx"])
-jd_file = st.file_uploader("Upload Job Description (PDF or DOCX)", type=["pdf", "docx"])
-interview_file = st.file_uploader("Upload Interview Evaluation Sheet (PDF or DOCX)", type=["pdf", "docx"])
-equity_file = st.file_uploader("Upload Internal Equity Sheet (Excel)", type=["xlsx"])
+# ---------- Streamlit UI ----------
+st.set_page_config(page_title="Salary Evaluation Dashboard", layout="wide")
+st.title("💼 Salary Evaluation Dashboard")
 
-# --- SECTION 3: SCORING ---
-st.header("3. Evaluation Scores (Editable)")
-education_score = st.slider("🎓 Education & Qualifications", 0, 10, 8)
-experience_score = st.slider("💼 Experience", 0, 10, 7)
-performance_score = st.slider("🚀 Performance Potential", 0, 10, 7)
+with st.sidebar:
+    st.header("📄 Candidate Info")
+    name = st.text_input("Candidate Name")
+    title = st.text_input("Position Title", "Administrative Officer")
+    grade = st.text_input("Grade")
+    salary_input = st.number_input("Final Salary (AED)", 0, 50000, 10000)
 
-total_score = education_score + experience_score + performance_score
-st.metric("Total Score", total_score)
+st.markdown("### 📁 Upload Evaluation Files")
+col1, col2, col3 = st.columns(3)
+with col1:
+    cv = st.file_uploader("CV")
+with col2:
+    jd = st.file_uploader("Job Description")
+with col3:
+    interview = st.file_uploader("Interview Sheet")
 
-if total_score >= 25:
-    step_range = list(range(12, 16))
-elif total_score >= 20:
-    step_range = list(range(9, 12))
-elif total_score >= 15:
-    step_range = list(range(6, 9))
-elif total_score >= 10:
-    step_range = list(range(3, 6))
+# Simulate score calculation
+if cv and jd:
+    parsed = mock_parse_cv_and_jd()
+    education = parsed["educationScore"]
+    experience = parsed["experienceScore"]
 else:
-    step_range = list(range(1, 3))
+    education = st.slider("Education Score", 0, 10, 0)
+    experience = st.slider("Experience Score", 0, 10, 0)
 
-st.subheader(f"📈 Suggested Step Interval: Steps {step_range[0]} to {step_range[-1]}")
-final_step = st.selectbox("Select Final Step", step_range)
-final_salary = st.number_input("💰 Final Recommended Salary (AED)", min_value=0, step=500)
-
-# --- SECTION 4: INTERNAL EQUITY ---
-st.header("4. Internal Equity Comparison")
-
-if equity_file:
-    df = pd.read_excel(equity_file)
-    filtered_df = df[df['Position Title'].str.lower() == position_title.strip().lower()]
-    if not filtered_df.empty:
-        avg_salary = filtered_df['Comp Rate'].mean()
-        min_salary = filtered_df['Comp Rate'].min()
-        max_salary = filtered_df['Comp Rate'].max()
-
-        st.dataframe(filtered_df)
-
-        st.markdown(f"""
-        - **Average Peer Salary:** AED {avg_salary:,.2f}  
-        - **Minimum Salary:** AED {min_salary:,.2f}  
-        - **Maximum Salary:** AED {max_salary:,.2f}  
-        - **Number of Peers:** {len(filtered_df)}
-        """)
-
-        fig, ax = plt.subplots(figsize=(8, 4))  # Smaller size
-        ax.bar(filtered_df['ID'].astype(str), filtered_df['Comp Rate'], color='skyblue', label='Peers')
-        ax.axhline(y=final_salary, color='red', linestyle='--', label='Candidate Recommended Salary')
-        ax.set_xlabel("Employee ID", fontsize=6)
-        ax.set_ylabel("Compensation (AED)", fontsize=6)
-        ax.set_title("Candidate Salary vs Internal Peers", fontsize=8)
-        ax.tick_params(axis='x', labelrotation=45, labelsize=6)
-        ax.tick_params(axis='y', labelsize=6)
-        ax.legend(fontsize=6)
-        st.pyplot(fig)
-    else:
-        st.warning("No matching records found in Internal Equity Sheet.")
+if interview:
+    performance = mock_parse_interview()["performanceScore"]
 else:
-    st.info("Upload an Excel file to analyze internal equity.")
+    performance = st.slider("Performance Score", 0, 10, 0)
 
-# --- SECTION 5: OTHER FACTORS ---
-st.header("5. Additional Adjustment Factors")
-budget_flex = st.selectbox("📊 Organizational Budget Flexibility", [
-    "High Budget Flexibility", "Moderate Flexibility", "Minimal Flexibility"
-])
-candidate_expectations = st.selectbox("🧾 Candidate Salary Expectations", [
-    "Expectations Aligned", "Slight Gap - Negotiable", "Significant Gap"
-])
+# Score and Step Logic
+total_score = education + experience + performance
+interval = get_step_interval(total_score)
+st.success(f"Total Score: {total_score}/30 – {interval['label']} ({interval['range']})")
 
-# --- SECTION 6: FINAL SUMMARY ---
-st.header("6. Final Summary & Justification")
+steps = list(range(interval["min"], interval["max"] + 1))
+selected_step = st.selectbox("Select Final Step", steps)
 
-summary_text = f"""
-Candidate: {candidate_name}
-Position Title: {position_title}
-Position Grade: {position_grade}
+# Internal Equity Simulation
+st.markdown("### 📊 Internal Equity Comparison")
+equity_data = mock_parse_equity(title)
+df = pd.DataFrame(equity_data)
 
-Evaluation Scores:
-- Education: {education_score}/10
-- Experience: {experience_score}/10
-- Performance: {performance_score}/10
-- Total Score: {total_score}/30 → Step Range: {step_range[0]} to {step_range[-1]}
+min_val, max_val = df['compRate'].min(), df['compRate'].max()
+avg_val = df['compRate'].mean()
+range_third = (max_val - min_val) / 3
 
-Final Decision:
-- Final Step: Step {final_step}
-- Recommended Salary: AED {final_salary:,.2f}
-- Budget Flexibility: {budget_flex}
-- Candidate Expectations: {candidate_expectations}
+if salary_input < min_val:
+    placement = "Below Min"
+elif salary_input < min_val + range_third:
+    placement = "Lower"
+elif salary_input <= max_val - range_third:
+    placement = "Mid"
+elif salary_input <= max_val:
+    placement = "Higher"
+else:
+    placement = "Above Max"
+
+st.dataframe(df)
+st.bar_chart(df.set_index("id")["compRate"])
+
+st.markdown(f"**Salary Range:** AED {min_val:,} – AED {max_val:,}")
+st.markdown(f"**Proposed Placement:** {placement}")
+
+# Summary Generation
+st.markdown("### 📝 Summary")
+summary = f"""**Final Recommended Salary:** AED {salary_input:,} (Step {selected_step})
+
+**Evaluation Summary:**
+The candidate scored a total of {total_score}/30, placing them in the {interval['label']} ({interval['range']}).
+Scores:
+- Education: {education}
+- Experience: {experience}
+- Performance: {performance}
+
+**Internal Equity:**
+Salary Placement: {placement}  
+Compared to {len(df)} peers (Range: AED {min_val:,} – AED {max_val:,}, Avg: AED {avg_val:,.0f})
 """
-
-st.text_area("📝 Editable Summary", value=summary_text, height=350)
-
-# --- SECTION 7: WORD REPORT ---
-st.header("7. Download Final Report (Word DOCX)")
-
-def generate_word_report():
-    doc = Document()
-    doc.add_heading("HR Salary Evaluation Report", 0)
-
-    doc.add_heading("1. Candidate Info", level=1)
-    doc.add_paragraph(f"Candidate Name: {candidate_name}")
-    doc.add_paragraph(f"Position Title: {position_title}")
-    doc.add_paragraph(f"Position Grade: {position_grade}")
-
-    doc.add_heading("2. Evaluation Scores", level=1)
-    doc.add_paragraph(f"Education: {education_score}/10")
-    doc.add_paragraph(f"Experience: {experience_score}/10")
-    doc.add_paragraph(f"Performance: {performance_score}/10")
-    doc.add_paragraph(f"Total Score: {total_score}/30")
-    doc.add_paragraph(f"Step Range: Steps {step_range[0]} to {step_range[-1]}")
-    doc.add_paragraph(f"Selected Final Step: Step {final_step}")
-    doc.add_paragraph(f"Final Recommended Salary: AED {final_salary:,.2f}")
-
-    doc.add_heading("3. Other Factors", level=1)
-    doc.add_paragraph(f"Budget Flexibility: {budget_flex}")
-    doc.add_paragraph(f"Candidate Expectations: {candidate_expectations}")
-
-    doc.add_heading("4. Final Summary", level=1)
-    doc.add_paragraph(summary_text)
-
-    doc.add_heading("5. Generated On", level=1)
-    doc.add_paragraph(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-
-    buffer = BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    return buffer
-
-word_file = generate_word_report()
-
-st.download_button(
-    label="📥 Download Word Report",
-    data=word_file,
-    file_name=f"{candidate_name.replace(' ', '_')}_Salary_Evaluation.docx",
-    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-)
-
+st.text_area("Summary Output", summary, height=300)
