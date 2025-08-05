@@ -190,7 +190,9 @@ with tab2:
     final_salary = st.number_input("✅ Final Recommended Salary (AED)", step=500)
 
     st.subheader("Step 5: Internal Equity Analysis")
-    if uploaded_equity and title:
+    if uploaded_equity and title and final_salary == 0:
+        st.info("ℹ️ Please enter the Final Recommended Salary (AED) above to perform the equity analysis.")
+    if uploaded_equity and title and final_salary > 0:
         df_peers, error = load_filtered_equity_data(uploaded_equity, title)
         if error:
             st.error(error)
