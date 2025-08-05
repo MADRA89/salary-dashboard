@@ -5,6 +5,8 @@ import random
 import time
 from io import BytesIO
 from pandas import ExcelWriter
+from docx import Document
+from docx.shared import Inches
 
 # --- Helper Functions ---
 def mock_parse_cv_and_jd():
@@ -47,16 +49,56 @@ def load_filtered_equity_data(uploaded_file, position_title_input):
     df_filtered = df_filtered[df_filtered['positionTitle'].str.lower() == position_title_input.lower()]
     return df_filtered, None
 
+def generate_word_report(name, title, grade, education_score, experience_score, performance_score,
+                         total_score, interval_options, placement, selected_step,
+                         recommended_salary, final_salary, budget_threshold, hr_comments, df_peers):
+    doc = Document()
+    doc.add_heading('Final Salary Evaluation Report', 0)
+
+    doc.add_heading('Candidate Details', level=1)
+    doc.add_paragraph(f"Name: {name}")
+    doc.add_paragraph(f"Position Title: {title}")
+    doc.add_paragraph(f"Grade: {grade}")
+
+    doc.add_heading('Scoring Breakdown', level=1)
+    doc.add_paragraph(f"Education Score: {education_score}/10")
+    doc.add_paragraph(f"Experience Score: {experience_score}/10")
+    doc.add_paragraph(f"Performance Score: {performance_score}/10")
+    doc.add_paragraph(f"Total Score: {total_score}/30")
+    doc.add_paragraph(f"Suggested Step Interval: {interval_options} → {placement}")
+    doc.add_paragraph(f"Final Selected Step: {selected_step}")
+
+    doc.add_heading('Salary Recommendation', level=1)
+    doc.add_paragraph(f"AI-Recommended Salary: AED {recommended_salary:,.0f}")
+    doc.add_paragraph(f"Final Recommended Salary: AED {final_salary:,.0f}")
+    doc.add_paragraph(f"Budget Threshold: AED {budget_threshold:,.0f}")
+    budget_status = "Within Budget ✅" if final_salary <= budget_threshold else "Out of Budget ❌"
+    doc.add_paragraph(f"Budget Status: {budget_status}")
+
+    if df_peers is not None and not df_peers.empty:
+        doc.add_heading('Internal Equity Data', level=1)
+        table = doc.add_table(rows=1, cols=len(df_peers.columns))
+        table.style = 'Table Grid'
+        hdr_cells = table.rows[0].cells
+        for i, col_name in enumerate(df_peers.columns):
+            hdr_cells[i].text = col_name
+
+        for _, row in df_peers.iterrows():
+            row_cells = table.add_row().cells
+            for i, item in enumerate(row):
+                row_cells[i].text = str(item)
+
+    doc.add_heading("HR Final Comments", level=1)
+    doc.add_paragraph(hr_comments if hr_comments.strip() else "N/A")
+
+    return doc
+
 # --- Streamlit UI ---
 st.set_page_config(page_title="Salary Evaluation Dashboard", layout="wide")
 st.markdown("<h1 style='color:#003366;'>📊 Salary Evaluation Dashboard</h1>", unsafe_allow_html=True)
 
-tab1, tab2 = st.tabs([
-    "📘 Evaluation & Scoring Matrices",
-    "📋 Candidate Analysis"
-])
+tab1, tab2 = st.tabs(["📘 Evaluation & Scoring Matrices", "📋 Candidate Analysis"])
 
-# --- Tab 1: Matrices ---
 with tab1:
     col1, col2 = st.columns(2)
     with col1:
@@ -90,7 +132,6 @@ with tab1:
         | <10   | Steps 1–2 | Bottom Range |
         """)
 
-# --- Tab 2: Candidate Analysis ---
 with tab2:
     st.subheader("Step 1: Candidate & Position Details")
     colA, colB = st.columns([1, 2])
@@ -113,8 +154,6 @@ with tab2:
             uploaded_equity = st.file_uploader("📊 Internal Equity Excel", type=["xlsx"])
 
         st.markdown("### Step 3: AI Evaluation + Manual Adjustment")
-
-        # Default AI scoring
         if uploaded_cv and uploaded_jd:
             with st.spinner("🔍 Evaluating CV & JD..."):
                 time.sleep(1)
@@ -129,7 +168,6 @@ with tab2:
         else:
             ai_scores["performanceScore"] = 0
 
-        # Editable scoring fields (user override)
         education_score = st.slider("🎓 Education Score (Editable)", 0, 10, ai_scores["educationScore"])
         experience_score = st.slider("💼 Experience Score (Editable)", 0, 10, ai_scores["experienceScore"])
         performance_score = st.slider("🚀 Performance Score (Editable)", 0, 10, ai_scores["performanceScore"])
@@ -218,10 +256,30 @@ with tab2:
         AI-Recommended Salary: AED {recommended_salary:,.0f}
         Final Recommended Salary: AED {final_salary:,.0f}
         Budget Threshold: AED {budget_threshold:,.0f}
-        Budget Status: {"Within" if final_salary <= budget_threshold else "Out of"} Budget
+        Budget Status: {'Within' if final_salary <= budget_threshold else 'Out of'} Budget
 
         HR Final Comments:
         {hr_comments}
         """
         st.text_area("📋 Final Summary", summary, height=250)
         st.download_button("📤 Download Final Summary (.txt)", data=summary, file_name="salary_summary.txt")
+
+        # Generate Word document
+        doc = generate_word_report(
+            name, title, grade,
+            education_score, experience_score, performance_score,
+            total_score, interval_options, placement, selected_step,
+            recommended_salary, final_salary, budget_threshold,
+            hr_comments, df_peers if 'df_peers' in locals() else None
+        )
+
+        buffer = BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+
+        st.download_button(
+            label="📥 Download Full Report (.docx)",
+            data=buffer,
+            file_name=f"{name.replace(' ', '_').lower()}_evaluation_report.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
