@@ -113,6 +113,7 @@ def generate_word_report(name, title, grade, education_score, experience_score, 
     plt.title("Internal Equity Compensation Comparison")
     plt.xlabel("ID")
     plt.ylabel("Compensation (AED)")
+    plt.xticks(rotation=45)
     plt.tight_layout()
     chart_path = "/mnt/data/peer_chart_final.png"
     plt.savefig(chart_path)
