@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 from io import BytesIO
 from docx import Document
 from docx.shared import Pt
@@ -11,99 +12,67 @@ st.set_page_config(page_title="HR Salary Evaluation", layout="wide")
 # --- STYLES ---
 st.markdown("""
     <style>
-    .title { font-size:32px; font-weight: bold; margin-bottom: 20px; }
-    .subtitle { font-size:24px; font-weight: bold; margin-top: 30px; }
-    .center { text-align: center; }
+        .title { text-align: center; font-size: 36px; font-weight: bold; margin-bottom: 30px; }
+        .subtitle { font-size: 24px; font-weight: bold; margin-top: 20px; }
+        .footer { margin-top: 50px; font-size: 14px; text-align: center; color: #888; }
     </style>
 """, unsafe_allow_html=True)
 
 # --- TITLE ---
-st.markdown('<div class="title center">Faculty Salary Evaluation System</div>', unsafe_allow_html=True)
+st.markdown('<div class="title">HR Salary Evaluation Dashboard</div>', unsafe_allow_html=True)
 
 # --- FILE UPLOAD ---
-uploaded_files = st.file_uploader("Upload Excel file(s)", type=["xlsx"], accept_multiple_files=True)
+uploaded_file = st.file_uploader("Upload Excel file", type=["xlsx"])
 
-# --- ANALYZE BUTTON ---
-analyze = st.button("Analyze")
+if uploaded_file is not None:
+    df = pd.read_excel(uploaded_file)
 
-if analyze and uploaded_files:
-    for uploaded_file in uploaded_files:
-        st.markdown(f'<div class="subtitle">📄 File: {uploaded_file.name}</div>', unsafe_allow_html=True)
-        try:
-            df = pd.read_excel(uploaded_file)
+    # Show the dataframe
+    st.markdown('<div class="subtitle">Uploaded Data</div>', unsafe_allow_html=True)
+    st.dataframe(df, use_container_width=True)
 
-            # --- CLEANING DATA ---
-            df.columns = df.columns.str.strip()
-            df = df.dropna(subset=["Name"])
+    # --- ANALYSIS BUTTON ---
+    if st.button("Analyze Salaries"):
+        st.markdown('<div class="subtitle">Salary Distribution</div>', unsafe_allow_html=True)
+        plt.figure(figsize=(10, 4))
+        df['Salary'].plot(kind='hist', bins=20, edgecolor='black')
+        plt.title('Salary Distribution')
+        plt.xlabel('Salary')
+        plt.ylabel('Frequency')
+        st.pyplot(plt)
 
-            # --- RANK CATEGORY BASED ON GRADE ---
-            def determine_rank(grade):
-                if pd.isna(grade):
-                    return "Unknown"
-                grade = str(grade).lower()
-                if "12" in grade:
-                    return "Professor"
-                elif "11" in grade:
-                    return "Associate Professor"
-                elif "10" in grade:
-                    return "Assistant Professor"
-                else:
-                    return "Other"
+    # --- GENERATE WORD DOC ---
+    st.markdown('<div class="subtitle">Generate Salary Report</div>', unsafe_allow_html=True)
 
-            df["Rank"] = df["Grade"].apply(determine_rank)
+    if st.button("Generate Report"):
+        buffer = BytesIO()
+        doc = Document()
+        style = doc.styles['Normal']
+        font = style.font
+        font.name = 'Arial'
+        font.size = Pt(11)
 
-            # --- MARITAL STATUS & CAMPUS LOGIC ---
-            def calculate_allowance(row):
-                campus = str(row.get("Campus", "")).lower()
-                status = str(row.get("Marital Status", "")).lower()
-                grade = str(row.get("Grade", "")).lower()
-                base = float(row.get("Basic Salary", 0))
+        doc.add_heading('Salary Report', 0)
+        doc.add_paragraph(f"Date: {datetime.datetime.now().strftime('%Y-%m-%d')}")
 
-                housing = transportation = phone = furniture = education = 0
+        table = doc.add_table(rows=1, cols=len(df.columns))
+        table.style = 'Table Grid'
+        hdr_cells = table.rows[0].cells
+        for i, column in enumerate(df.columns):
+            hdr_cells[i].text = str(column)
 
-                if "12" in grade:  # Professor
-                    housing = 85000
-                    transportation = 3500
-                    phone = 300
-                    furniture = 50000
-                    education = 5000
-                elif "11" in grade:  # Associate Professor
-                    housing = 80000
-                    transportation = 3000
-                    phone = 200
-                    furniture = 40000
-                    education = 5000
-                elif "10" in grade:  # Assistant Professor
-                    housing = 70000
-                    transportation = 2500
-                    phone = 100
-                    furniture = 30000
-                    education = 5000
+        for _, row in df.iterrows():
+            row_cells = table.add_row().cells
+            for i, item in enumerate(row):
+                row_cells[i].text = str(item)
 
-                if "al ain" in campus:
-                    transportation += 1000
+        doc.save(buffer)
+        st.download_button(
+            label="Download Report",
+            data=buffer.getvalue(),
+            file_name="salary_report.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
 
-                if "single" in status:
-                    education = 0
-
-                total = base + housing + transportation + phone + education
-                return pd.Series({
-                    "Housing": housing,
-                    "Transportation": transportation,
-                    "Phone": phone,
-                    "Furniture": furniture,
-                    "Education": education,
-                    "Total Salary": total
-                })
-
-            df = df.join(df.apply(calculate_allowance, axis=1))
-
-            # --- DISPLAY ---
-            st.dataframe(df)
-
-            # --- SUMMARY ---
-            st.markdown("### Summary Statistics")
-            st.write(df.describe(include='all'))
-
-        except Exception as e:
-            st.error(f"❌ Error processing {uploaded_file.name}: {e}")
+# --- FOOTER ---
+st.markdown('<div class="footer">Developed by HR Analytics Team</div>', unsafe_allow_html=True)
