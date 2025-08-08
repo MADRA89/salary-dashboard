@@ -1,4 +1,12 @@
-import streamlit as st import pandas as pd import altair as alt import random import time from io import BytesIO from pandas import ExcelWriter from docx import Document from docx.shared import Inches
+import streamlit as st 
+import pandas as pd 
+import altair as alt 
+import random 
+import time from io 
+import BytesIO from pandas 
+import ExcelWriter from docx 
+import Document from docx.shared 
+import Inches
 
 --- Helper Functions ---
 
