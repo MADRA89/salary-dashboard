@@ -135,7 +135,6 @@ with tab1:
 with tab2:
     st.subheader("Step 1: Candidate & Position Details")
     colA, colB = st.columns([1, 2])
-
     with colA:
         name = st.text_input("👤 Candidate Name")
         title = st.text_input("🏷️ Position Title (for equity comparison)")
@@ -153,19 +152,28 @@ with tab2:
         uploaded_equity = st.file_uploader("📊 Internal Equity Excel", type=["xlsx"])
 
     st.subheader("Step 3: AI Evaluation + Manual Adjustment")
-    if uploaded_cv and uploaded_jd:
+
+    # ----------------- تعديل التحليل لمرة واحدة فقط -----------------
+    if "ai_scores" not in st.session_state:
+        st.session_state.ai_scores = None
+
+    if uploaded_cv and uploaded_jd and st.session_state.ai_scores is None:
         with st.spinner("🔍 Evaluating CV & JD..."):
             time.sleep(1)
-            ai_scores = mock_parse_cv_and_jd()
+            cv_jd_scores = mock_parse_cv_and_jd()
     else:
-        ai_scores = {"educationScore": 0, "experienceScore": 0}
+        cv_jd_scores = st.session_state.ai_scores or {"educationScore": 0, "experienceScore": 0}
 
-    if uploaded_interview:
+    if uploaded_interview and st.session_state.ai_scores is None:
         with st.spinner("🧠 Evaluating Interview..."):
             time.sleep(1)
-            ai_scores.update(mock_parse_interview_sheet())
-    else:
-        ai_scores["performanceScore"] = 0
+            interview_scores = mock_parse_interview_sheet()
+        st.session_state.ai_scores = {**cv_jd_scores, **interview_scores}
+    elif st.session_state.ai_scores is None:
+        st.session_state.ai_scores = {**cv_jd_scores, "performanceScore": 0}
+
+    ai_scores = st.session_state.ai_scores
+    # ----------------------------------------------------------------
 
     education_score = st.slider("🎓 Education Score (Editable)", 0, 10, ai_scores["educationScore"])
     experience_score = st.slider("💼 Experience Score (Editable)", 0, 10, ai_scores["experienceScore"])
