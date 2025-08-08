@@ -8,7 +8,7 @@ from pandas import ExcelWriter
 from docx import Document
 from docx.shared import Inches
 
-#--- Helper Functions ---
+# --- Helper Functions ---
 
 def mock_parse_cv_and_jd():
 return {
